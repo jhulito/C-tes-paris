@@ -51,3 +51,28 @@ test('Kelly', () => {
   assert.equal(kelly(2.0, 0.5, 1), 0);
   assert.ok(Math.abs(kelly(2.2, 0.5, 1) - 0.0833) < 0.001);
 });
+
+test('mi-temps, score exact et mi-temps/fin de match', () => {
+  const half = (book, h, a, d) => ({ ...x12(book, h, a, d), scope: 'FIRST_HALF' });
+  const htft = (book, v) => ({ book, type: 'HALF_FULL_TIME', scope: 'FULL_TIME', items: ['1/1', 'X/1', '2/1', '1/X', 'X/X', '2/X', '1/2', 'X/2', '2/2'].map((w, i) => ({ winner: w, value: v[i], active: true })) });
+  const cs = (book, v00, v10) => ({ book, type: 'CORRECT_SCORE', scope: 'FULL_TIME', items: [{ score: '0:0', value: v00, active: true }, { score: '1:0', value: v10, active: true }] });
+  const r = analyze([match([
+    x12('winamax', 2.0, 3.8, 3.4), x12('unibet', 2.1, 3.5, 3.3),
+    half('winamax', 2.6, 4.5, 2.1), half('unibet', 2.8, 4.2, 2.0),
+    htft('winamax', [3, 5, 20, 14, 5, 14, 30, 9, 8]), htft('unibet', [3.2, 5, 21, 13, 5.2, 14, 28, 9, 7.5]),
+    cs('winamax', 9, 7), cs('betclic', 12, 7.5),
+  ])]);
+  const h = r.selections.find((s) => s.key === 'm1|1X2@FIRST_HALF|1');
+  assert.equal(h.group, 'period');
+  assert.equal(h.market, '1N2 · 1re mi-temps');
+  assert.equal(h.best, 2.8);
+  const hf = r.selections.find((s) => s.key === 'm1|HTFT|X/1');
+  assert.equal(hf.outcomeLabel, 'Nul / Paris');
+  assert.ok(hf.fairOdd); // 9 issues présentes chez 2 books -> cote juste calculée
+  const c = r.selections.find((s) => s.key === 'm1|CS|0:0');
+  assert.equal(c.outcomeLabel, 'Score 0-0');
+  assert.equal(c.bestBook, 'betclic');
+  assert.equal(c.fairOdd, null);
+  // le 1N2 du match reste dans "main"
+  assert.equal(r.selections.find((s) => s.key === 'm1|1X2|1').group, 'main');
+});

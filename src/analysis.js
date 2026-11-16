@@ -9,7 +9,32 @@ const MARKET_GROUPS = {
   dc: 'Double chance',
   btts: 'Les 2 équipes marquent',
   ou: 'Plus / Moins',
+  htft: 'Mi-temps / Fin de match',
+  cs: 'Score exact',
+  period: 'Mi-temps, sets, quart-temps',
 };
+
+// Périmètres Flashscore -> libellé ajouté au nom du marché
+const SCOPES = {
+  FULL_TIME: '',
+  FULL_TIME_OVER_TIME: ' (prol. incl.)',
+  FIRST_HALF: ' · 1re mi-temps',
+  SECOND_HALF: ' · 2e mi-temps',
+  FIRST_SET: ' · 1er set',
+  SECOND_SET: ' · 2e set',
+  THIRD_SET: ' · 3e set',
+  FIRST_QUARTER: ' · 1er quart-temps',
+  SECOND_QUARTER: ' · 2e quart-temps',
+  THIRD_QUARTER: ' · 3e quart-temps',
+  FOURTH_QUARTER: ' · 4e quart-temps',
+  FIRST_PERIOD: ' · 1re période',
+  SECOND_PERIOD: ' · 2e période',
+  THIRD_PERIOD: ' · 3e période',
+};
+const scopeLabel = (scope) => (scope in SCOPES ? SCOPES[scope] : ` · ${String(scope).toLowerCase().replace(/_/g, ' ')}`);
+const isMatchScope = (scope) => scope === 'FULL_TIME' || scope === 'FULL_TIME_OVER_TIME';
+// Groupes dont on garde l'historique entre scans (les autres sont trop volumineux)
+const HISTORY_GROUPS = new Set(['main', 'dnb', 'dc', 'btts', 'ou']);
 
 const isFullTime = (scope) => scope === 'FULL_TIME' || /^FULL_TIME/.test(scope || '');
 
@@ -71,6 +96,22 @@ function mapEntry(entry, ids, match) {
         push({ ...base, group: 'ou', complete: true, marketKey: `OU${it.line}`, marketLabel: `Plus/Moins ${it.line}`, outcome: over ? '+' : '-', outcomeLabel: `${over ? 'Plus' : 'Moins'} de ${it.line}` });
         break;
       }
+      case 'HALF_FULL_TIME': {
+        // winner = "1/X" : résultat à la mi-temps / résultat final
+        if (!/^[12X]\/[12X]$/.test(it.winner || '')) break;
+        const name = { 1: match.home, X: 'Nul', 2: match.away };
+        const [ht, ft] = it.winner.split('/');
+        push({ ...base, group: 'htft', complete: true, marketKey: 'HTFT', marketLabel: 'Mi-temps / Fin', outcome: it.winner, outcomeLabel: `${name[ht]} / ${name[ft]}` });
+        break;
+      }
+      case 'CORRECT_SCORE': {
+        // score = "domicile:extérieur"
+        if (!/^\d+:\d+$/.test(it.score || '')) break;
+        push({ ...base, group: 'cs', complete: false, marketKey: 'CS', marketLabel: 'Score exact', outcome: it.score, outcomeLabel: `Score ${it.score.replace(':', '-')}` });
+        break;
+      }
+      // Les handicaps (asiatique / européen) ne sont pas repris : le sens de la
+      // ligne n'est pas assez clair dans les données pour l'afficher sans risque d'erreur.
       default:
         break;
     }
@@ -94,13 +135,14 @@ function analyze(matches) {
     // markets[marketKey] = { info, outcomes: { outcome: { label, odds:{book:v}, opening:{book:v} } } }
     const markets = {};
     for (const entry of match.odds) {
-      if (!isFullTime(entry.scope)) continue;
-      // On ne mélange jamais deux périmètres différents (ex. basket : temps réglementaire vs prolongations incluses)
+      // On ne mélange jamais deux périmètres différents (match, mi-temps, set, prolongations incluses…)
       const suffix = entry.scope === 'FULL_TIME' ? '' : '@' + entry.scope;
-      const extra = /OVER_?TIME/.test(entry.scope) ? ' (prol. incl.)' : suffix ? ` (${entry.scope.toLowerCase()})` : '';
+      const extra = scopeLabel(entry.scope);
       for (const s of mapEntry(entry, ids, match)) {
         const key = s.marketKey + suffix;
-        const m = (markets[key] ||= { key, label: s.marketLabel + extra, group: s.group, complete: s.complete, outcomes: {} });
+        // Tout ce qui ne porte pas sur le match entier va dans le groupe "period"
+        const group = isMatchScope(entry.scope) ? s.group : 'period';
+        const m = (markets[key] ||= { key, label: s.marketLabel + extra, group, complete: s.complete, outcomes: {} });
         const o = (m.outcomes[s.outcome] ||= { label: s.outcomeLabel, odds: {}, opening: {} });
         o.odds[entry.book] = s.value;
         if (s.opening) o.opening[entry.book] = s.opening;
@@ -110,7 +152,7 @@ function analyze(matches) {
     for (const m of Object.values(markets)) {
       const outcomeKeys = Object.keys(m.outcomes);
       // Nombre d'issues attendu pour un marché complet
-      const expected = m.key.startsWith('1X2') ? 3 : 2;
+      const expected = m.key.startsWith('1X2') ? 3 : m.key.startsWith('HTFT') ? 9 : 2;
       const isComplete = m.complete && outcomeKeys.length === expected;
 
       // Probabilités "justes" : on retire la marge de chaque book puis on fait la moyenne.
@@ -213,4 +255,4 @@ function kelly(odd, prob, fraction = 0.25) {
   return Math.max(0, f * fraction);
 }
 
-module.exports = { analyze, kelly, BOOK_KEYS, MARKET_GROUPS };
+module.exports = { analyze, kelly, BOOK_KEYS, MARKET_GROUPS, HISTORY_GROUPS };

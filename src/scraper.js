@@ -160,6 +160,8 @@ async function fetchMatchOdds(ctx, match) {
           line: o.handicap?.value ?? null,
           selection: o.selection ?? null,
           btts: o.bothTeamsToScore ?? null,
+          score: o.score ?? null,
+          winner: o.winner ?? null,
         })),
       });
     }

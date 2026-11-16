@@ -17,7 +17,7 @@ Les cotes sont lues sur les pages publiques de **Flashscore.fr** (onglet « Cote
 | **Chat** | Discussion avec Claude, qui voit le dernier scan (écarts, value, surebets, marges, mouvements) et ton journal. |
 | **Réglages** | Sports, jour (aujourd'hui / demain / après-demain), nombre de matchs, **scan automatique**, seuil d'**alerte** (notifications navigateur), bankroll, fraction de Kelly. |
 
-Marchés comparés (temps réglementaire) : 1N2 / Vainqueur, Remboursé si nul, Double chance, Les 2 équipes marquent, Plus/Moins. Sports : football, tennis, basket, hockey, rugby, handball, volley.
+Marchés comparés : 1N2 / Vainqueur, Remboursé si nul, Double chance, Les 2 équipes marquent, Plus/Moins, Mi-temps / Fin de match, Score exact, et tous ces marchés par mi-temps, set ou quart-temps quand Flashscore les publie. Les handicaps ne sont pas repris (le sens de la ligne n'est pas assez clair dans les données). Sports : football, tennis, basket, hockey, rugby, handball, volley.
 
 ## Installation
 

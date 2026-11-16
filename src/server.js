@@ -11,7 +11,7 @@ const path = require('path');
 const express = require('express');
 const store = require('./store');
 const scraper = require('./scraper');
-const { analyze, kelly, MARKET_GROUPS, BOOK_KEYS } = require('./analysis');
+const { analyze, kelly, MARKET_GROUPS, BOOK_KEYS, HISTORY_GROUPS } = require('./analysis');
 const { streamChat, MODEL } = require('./chat');
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -105,6 +105,7 @@ async function runScan(opts = {}) {
       const a = analyze(res.matches);
       const t = Date.now();
       for (const sel of a.selections) {
+        if (!HISTORY_GROUPS.has(sel.group)) continue;
         const h = (db.history[sel.key] ||= []);
         h.push({ t, o: sel.odds });
         if (h.length > 40) h.splice(0, h.length - 40);
@@ -265,7 +266,8 @@ function chatSnapshot() {
   return {
     dernierScan: db.lastScan ? { date: db.lastScan.at, sports: db.lastScan.sports, nbMatchs: db.lastScan.matches.length, paysDetecteParFlashscore: db.lastScan.geo } : null,
     reglages: { bankroll: db.settings.bankroll, fractionKelly: db.settings.kellyFraction, seuilAlerteEcartPct: db.settings.alertGapPct },
-    plusGrosEcarts: (a?.selections || []).slice(0, 30).map(slim),
+    plusGrosEcarts: (a?.selections || []).filter((s) => HISTORY_GROUPS.has(s.group)).slice(0, 30).map(slim),
+    ecartsAutresMarches: (a?.selections || []).filter((s) => !HISTORY_GROUPS.has(s.group)).slice(0, 15).map(slim),
     meilleuresValues: (a?.selections || []).filter((s) => s.valuePct != null).sort((x, y) => y.valuePct - x.valuePct).slice(0, 15).map(slim),
     surebets: (a?.surebets || []).slice(0, 10).map((s) => ({ match: `${s.home} - ${s.away}`, marche: s.market, sommeInverses: s.sumInv, profitPct: s.profitPct, jambes: s.legs })),
     margesBooks: a?.margins,

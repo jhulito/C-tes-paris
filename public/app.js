@@ -11,6 +11,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const fmt = (n, d = 2) => (n == null || isNaN(n) ? '–' : Number(n).toFixed(d));
 const api = async (url, opts = {}) => {
   const r = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts, body: opts.body ? JSON.stringify(opts.body) : undefined });
+  if (r.status === 401) { location.href = '/login'; throw new Error('non connecté'); }
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.statusText);
   return r.json();
 };
@@ -131,11 +132,11 @@ function renderAll() {
 function oddsCells(s) {
   return BOOKS.map((b) => {
     const v = s.odds[b];
-    if (!v) return '<td class="num"><span class="odd none">–</span></td>';
+    if (!v) return `<td class="num ob" data-l="${BOOK_LABEL[b]}"><span class="odd none">–</span></td>`;
     const cls = v === s.best ? 'best' : v === s.worst && s.best !== s.worst ? 'worst' : '';
     const op = s.opening?.[b];
     const title = op && op !== v ? `Ouverture ${op} → ${v}` : '';
-    return `<td class="num"><span class="odd ${cls}" title="${title}">${fmt(v)}</span></td>`;
+    return `<td class="num ob" data-l="${BOOK_LABEL[b]}"><span class="odd ${cls}" title="${title}">${fmt(v)}</span></td>`;
   }).join('');
 }
 const matchCell = (s) => `<td class="match"><b>${esc(s.home)} – ${esc(s.away)}</b><small>${esc(s.time)} · ${esc(s.league || s.sport)}</small></td>`;
@@ -182,12 +183,12 @@ function renderGaps() {
   const rows = filteredGaps();
   if (!rows.length) return (t.innerHTML = `<tr><td class="empty">Aucune sélection ne correspond aux filtres.</td></tr>`);
   t.innerHTML = `<thead><tr><th>Match</th><th>Marché</th><th>Sélection</th>${BOOKS.map((b) => `<th class="num">${BOOK_LABEL[b]}</th>`).join('')}<th class="num">Écart</th><th class="num">Cote juste</th><th class="num">Value</th><th class="num">Depuis dernier scan</th><th></th></tr></thead><tbody>` +
-    rows.map((s) => `<tr data-key="${esc(s.key)}">${matchCell(s)}<td><span class="tag">${esc(s.market)}</span></td><td>${esc(s.outcomeLabel)}</td>${oddsCells(s)}
-      <td class="num gap ${gapClass(s.gapPct)}">${fmt(s.gapPct, 1)} %</td>
-      <td class="num">${fmt(s.fairOdd)}</td>
-      <td class="num ${s.valuePct > 0 ? 'pos' : s.valuePct < 0 ? 'neg' : ''}">${s.valuePct == null ? '–' : fmt(s.valuePct, 1) + ' %'}</td>
-      <td class="num ${s.sinceLastPct > 0 ? 'pos' : s.sinceLastPct < 0 ? 'neg' : ''}">${s.sinceLastPct ? (s.sinceLastPct > 0 ? '+' : '') + fmt(s.sinceLastPct, 1) + ' %' : '–'}</td>
-      <td><button class="iconbtn" data-act="hist" title="Historique">📈</button> <button class="iconbtn" data-act="bet" title="Ajouter au journal">＋</button> <a class="btn iconbtn" href="${esc(s.url)}" target="_blank" rel="noreferrer" title="Voir sur Flashscore">↗</a></td></tr>`).join('') + '</tbody>';
+    rows.map((s) => `<tr data-key="${esc(s.key)}">${matchCell(s)}<td class="mk"><span class="tag">${esc(s.market)}</span></td><td class="sel">${esc(s.outcomeLabel)}</td>${oddsCells(s)}
+      <td class="num gap ${gapClass(s.gapPct)}" data-l="Écart">${fmt(s.gapPct, 1)} %</td>
+      <td class="num" data-l="Cote juste">${fmt(s.fairOdd)}</td>
+      <td data-l="Value" class="num ${s.valuePct > 0 ? 'pos' : s.valuePct < 0 ? 'neg' : ''}">${s.valuePct == null ? '–' : fmt(s.valuePct, 1) + ' %'}</td>
+      <td data-l="Depuis scan" class="num ${s.sinceLastPct > 0 ? 'pos' : s.sinceLastPct < 0 ? 'neg' : ''}">${s.sinceLastPct ? (s.sinceLastPct > 0 ? '+' : '') + fmt(s.sinceLastPct, 1) + ' %' : '–'}</td>
+      <td class="acts"><button class="iconbtn" data-act="hist" title="Historique">📈</button> <button class="iconbtn" data-act="bet" title="Ajouter au journal">＋</button> <a class="btn iconbtn" href="${esc(s.url)}" target="_blank" rel="noreferrer" title="Voir sur Flashscore">↗</a></td></tr>`).join('') + '</tbody>';
 }
 
 function kellyStake(odd, fairOdd) {
@@ -206,11 +207,11 @@ function renderValue() {
     .sort((x, y) => y.valuePct - x.valuePct).slice(0, 200);
   if (!rows.length) return (t.innerHTML = `<tr><td class="empty">Aucune value au-dessus de ${min} % pour le moment.</td></tr>`);
   t.innerHTML = `<thead><tr><th>Match</th><th>Marché</th><th>Sélection</th><th class="num">Meilleure cote</th><th>Book</th><th class="num">Cote juste</th><th class="num">Proba juste</th><th class="num">Value</th><th class="num">Mise Kelly</th><th></th></tr></thead><tbody>` +
-    rows.map((s) => `<tr data-key="${esc(s.key)}">${matchCell(s)}<td><span class="tag">${esc(s.market)}</span></td><td>${esc(s.outcomeLabel)}</td>
-      <td class="num"><span class="odd best">${fmt(s.best)}</span></td><td><span class="bk ${s.bestBook}">${BOOK_LABEL[s.bestBook]}</span></td>
-      <td class="num">${fmt(s.fairOdd)}</td><td class="num">${fmt(s.fairProb, 1)} %</td><td class="num pos">+${fmt(s.valuePct, 1)} %</td>
-      <td class="num">${fmt(kellyStake(s.best, s.fairOdd))} €</td>
-      <td><button class="iconbtn" data-act="bet" title="Ajouter au journal">＋</button></td></tr>`).join('') + '</tbody>';
+    rows.map((s) => `<tr data-key="${esc(s.key)}">${matchCell(s)}<td class="mk"><span class="tag">${esc(s.market)}</span></td><td class="sel">${esc(s.outcomeLabel)}</td>
+      <td class="num" data-l="Meilleure"><span class="odd best">${fmt(s.best)}</span></td><td data-l="Book"><span class="bk ${s.bestBook}">${BOOK_LABEL[s.bestBook]}</span></td>
+      <td class="num" data-l="Cote juste">${fmt(s.fairOdd)}</td><td class="num" data-l="Proba">${fmt(s.fairProb, 1)} %</td><td class="num pos" data-l="Value">+${fmt(s.valuePct, 1)} %</td>
+      <td class="num" data-l="Mise Kelly">${fmt(kellyStake(s.best, s.fairOdd))} €</td>
+      <td class="acts"><button class="iconbtn" data-act="bet" title="Ajouter au journal">＋</button></td></tr>`).join('') + '</tbody>';
 }
 
 function renderSurebets() {
@@ -236,8 +237,8 @@ function renderMoves() {
   const rows = a.movements.filter((m) => (!book || m.book === book) && (!dir || (dir === 'down' ? m.changePct < 0 : m.changePct > 0))).slice(0, 200);
   if (!rows.length) return (t.innerHTML = `<tr><td class="empty">Aucun mouvement.</td></tr>`);
   t.innerHTML = `<thead><tr><th>Match</th><th>Marché</th><th>Sélection</th><th>Book</th><th class="num">Ouverture</th><th class="num">Actuelle</th><th class="num">Variation</th></tr></thead><tbody>` +
-    rows.map((m) => `<tr>${matchCell(m)}<td><span class="tag">${esc(m.market)}</span></td><td>${esc(m.outcomeLabel)}</td><td><span class="bk ${m.book}">${BOOK_LABEL[m.book]}</span></td>
-      <td class="num">${fmt(m.opening)}</td><td class="num">${fmt(m.current)}</td><td class="num ${m.changePct > 0 ? 'pos' : 'neg'}">${m.changePct > 0 ? '+' : ''}${fmt(m.changePct, 1)} %</td></tr>`).join('') + '</tbody>';
+    rows.map((m) => `<tr>${matchCell(m)}<td class="mk"><span class="tag">${esc(m.market)}</span></td><td class="sel">${esc(m.outcomeLabel)}</td><td data-l="Book"><span class="bk ${m.book}">${BOOK_LABEL[m.book]}</span></td>
+      <td class="num" data-l="Ouverture">${fmt(m.opening)}</td><td class="num" data-l="Actuelle">${fmt(m.current)}</td><td data-l="Variation" class="num ${m.changePct > 0 ? 'pos' : 'neg'}">${m.changePct > 0 ? '+' : ''}${fmt(m.changePct, 1)} %</td></tr>`).join('') + '</tbody>';
 }
 
 function renderBooks() {
@@ -522,6 +523,9 @@ setInterval(async () => {
   if (state.meta?.lastScan?.at !== prev) { await loadAnalysis(); checkAlerts(); }
   else renderScanInfo();
 }, 30000);
+
+// ---------- Application installable (écran d'accueil) ----------
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 
 // ---------- Démarrage ----------
 (async () => {

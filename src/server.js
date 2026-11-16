@@ -17,6 +17,45 @@ const { streamChat, MODEL } = require('./chat');
 const PORT = Number(process.env.PORT) || 3000;
 const app = express();
 app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: false }));
+
+// ---------- Code d'accès (APP_PASSWORD) ----------
+// Indispensable si l'app est joignable depuis Internet (le chat consomme ta clé API).
+const crypto = require('crypto');
+const PASSWORD = process.env.APP_PASSWORD || '';
+const TOKEN = PASSWORD ? crypto.createHash('sha256').update('cotes:' + PASSWORD).digest('hex') : '';
+const PUBLIC_PATHS = /^\/(login|manifest\.webmanifest|icons\/|sw\.js|styles\.css)/;
+const readCookie = (req, name) => (req.headers.cookie || '').split(/;\s*/).map((c) => c.split('=')).find(([k]) => k === name)?.[1];
+const loginPage = (err) => `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Cotes">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#0b1220">
+<title>Écarts de cotes</title><link rel="stylesheet" href="/styles.css"></head>
+<body style="display:grid;place-items:center;min-height:100vh;padding:16px"><form method="post" action="/login" class="card" style="width:min(340px,100%);display:grid;gap:12px;text-align:center">
+<img src="/icons/icon-192.png" width="64" height="64" style="margin:0 auto;border-radius:14px" alt=""><h1>Écarts de cotes</h1>
+<input type="password" name="password" placeholder="Code d'accès" autofocus required style="font-size:16px;padding:10px">
+${err ? '<div class="neg">Code incorrect</div>' : ''}<button class="primary" style="justify-content:center;padding:10px">Entrer</button></form></body></html>`;
+
+if (PASSWORD) {
+  app.post('/login', async (req, res) => {
+    const ok = typeof req.body?.password === 'string' && crypto.timingSafeEqual(
+      crypto.createHash('sha256').update(req.body.password).digest(),
+      crypto.createHash('sha256').update(PASSWORD).digest());
+    if (!ok) {
+      await new Promise((r) => setTimeout(r, 1000)); // ralentit les essais au hasard
+      return res.status(401).send(loginPage(true));
+    }
+    const secure = req.secure || req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '';
+    res.setHeader('Set-Cookie', `auth=${TOKEN}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000${secure}`);
+    res.redirect('/');
+  });
+  app.get('/login', (req, res) => res.send(loginPage(false)));
+  app.use((req, res, next) => {
+    if (PUBLIC_PATHS.test(req.path) || readCookie(req, 'auth') === TOKEN) return next();
+    if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'non connecté' });
+    res.redirect('/login');
+  });
+}
+
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 const db = store.load();
@@ -244,7 +283,10 @@ app.post('/api/chat', async (req, res) => {
 });
 
 const server = app.listen(PORT, () => {
-  console.log(`\n  Écarts de cotes prêt sur http://localhost:${PORT}\n`);
+  const lan = Object.values(require('os').networkInterfaces()).flat().filter((i) => i && i.family === 'IPv4' && !i.internal).map((i) => `http://${i.address}:${PORT}`);
+  console.log(`\n  Écarts de cotes prêt sur http://localhost:${PORT}`);
+  if (lan.length) console.log(`  Sur ton téléphone (même Wi-Fi) : ${lan.join('  ou  ')}`);
+  console.log(PASSWORD ? '  Code d\'accès activé.\n' : '  Astuce : définis APP_PASSWORD avant d\'exposer l\'app sur Internet.\n');
 });
 
 async function stop() {

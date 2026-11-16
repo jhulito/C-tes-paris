@@ -36,6 +36,38 @@ Ouvre ensuite **http://localhost:3000** et clique sur « Lancer un scan ».
 
 La clé API n'est nécessaire que pour l'onglet Chat (tout le reste fonctionne sans). Elle se crée sur https://console.anthropic.com.
 
+## Sur l'iPhone (écran d'accueil)
+
+L'app est une **PWA** : une fois ajoutée à l'écran d'accueil, elle s'ouvre en plein écran avec son icône, comme une app classique (onglets en bas, tableaux en cartes). Le téléphone affiche l'app, mais c'est un **ordinateur ou un serveur qui fait les scans** : il doit être allumé et joignable.
+
+### Installation sur l'iPhone
+1. Ouvre l'adresse de l'app dans **Safari** (pas Chrome, sinon l'icône ne s'installe pas).
+2. Touche **Partager** (carré avec une flèche) → **Sur l'écran d'accueil** → **Ajouter**.
+3. Lance l'app depuis l'icône « Cotes ». Si un code d'accès est défini, entre-le une fois.
+
+### Quelle adresse ouvrir ? 3 options
+
+**A. À la maison, sur le même Wi-Fi (le plus simple)**
+Lance `npm start` sur ton ordinateur : le terminal affiche une adresse du type `http://192.168.1.20:3000`. Ouvre-la dans Safari sur l'iPhone. Ne marche que sur ton Wi-Fi, ordinateur allumé.
+
+**B. Partout, avec ton ordinateur à la maison (recommandé)**
+Installe [Tailscale](https://tailscale.com) (gratuit) sur l'ordinateur et sur l'iPhone, connecte les deux au même compte, puis ouvre `http://<nom-de-ton-pc>:3000` depuis l'iPhone, en 4G comme en Wi-Fi. L'app reste privée (rien n'est exposé sur Internet) et les scans partent de ta connexion française, donc Winamax est bien visible.
+
+**C. Toujours disponible, sans ordinateur allumé**
+Héberge l'app sur un petit serveur **situé en France** (OVH, Scaleway, Ionos… environ 4 à 6 €/mois). Un serveur hors de France ne verra pas Winamax.
+```bash
+docker build -t cotes .
+docker run -d --restart unless-stopped -p 3000:3000 -v cotes-data:/app/data \
+  -e APP_PASSWORD=ton-code -e ANTHROPIC_API_KEY=sk-ant-... cotes
+```
+Mets-le derrière HTTPS (Caddy, ou le proxy de ton hébergeur) et **définis toujours `APP_PASSWORD`** : sans code, n'importe qui pourrait utiliser ton chat (et ta clé API).
+
+### Code d'accès
+Ajoute `APP_PASSWORD=ton-code` dans `.env` : l'app demandera ce code au premier lancement sur chaque appareil (mémorisé un an).
+
+### Notifications
+Sur iPhone, les alertes s'affichent quand l'app est ouverte. Les notifications push app fermée demanderaient un service d'envoi en plus (pas inclus pour l'instant).
+
 ## Comment lire les chiffres
 
 - **Écart %** = meilleure cote / moins bonne cote − 1 pour la même sélection.
@@ -58,7 +90,7 @@ public/           Interface (HTML/CSS/JS sans framework)
 test/             Tests des calculs (npm test)
 ```
 
-Variables optionnelles : `PORT`, `CLAUDE_MODEL` (défaut `claude-opus-5-5`), `CLAUDE_EFFORT` (défaut `low`), `HTTPS_PROXY`, `CHROMIUM_PATH`.
+Variables optionnelles : `APP_PASSWORD` (code d'accès), `PORT`, `CLAUDE_MODEL` (défaut `claude-opus-5-5`), `CLAUDE_EFFORT` (défaut `low`), `HTTPS_PROXY`, `CHROMIUM_PATH`.
 
 ## Bon à savoir
 

@@ -44,14 +44,18 @@ $('#tabs').addEventListener('click', (e) => {
 async function loadMeta() {
   state.meta = await api('/api/meta');
   const m = state.meta;
-  // filtres
-  const sports = Object.entries(m.sports);
-  $('#fSport').innerHTML = '<option value="">Tous les sports</option>' + sports.map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
-  const groupOpts = Object.entries(m.groups).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
-  $('#fGroup').innerHTML = '<option value="">Tous les marchés</option>' + groupOpts;
-  $('#fGroup').value = 'main';
-  $('#vGroup').innerHTML = '<option value="">Tous les marchés</option>' + groupOpts;
-  $('#vGroup').value = 'main';
+  // filtres : remplis une seule fois, pour ne pas écraser le choix de l'utilisateur
+  // lors des rafraîchissements automatiques
+  if (!state.filtersReady) {
+    state.filtersReady = true;
+    const sports = Object.entries(m.sports);
+    $('#fSport').innerHTML = '<option value="">Tous les sports</option>' + sports.map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+    const groupOpts = Object.entries(m.groups).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+    $('#fGroup').innerHTML = '<option value="">Tous les marchés</option>' + groupOpts;
+    $('#fGroup').value = 'main';
+    $('#vGroup').innerHTML = '<option value="">Tous les marchés</option>' + groupOpts;
+    $('#vGroup').value = 'main';
+  }
   $('#chatModel').textContent = 'Modèle : ' + m.model;
   renderSettings();
   renderScanInfo();
@@ -258,10 +262,10 @@ function renderBooks() {
 }
 
 // Re-rendu sur changement de filtre
-['#fSearch', '#fSport', '#fGroup', '#fMinGap', '#fThree', '#fSort'].forEach((s) => $(s).addEventListener('input', renderGaps));
-['#vGroup', '#vMin', '#vThree'].forEach((s) => $(s).addEventListener('input', renderValue));
-['#sbStake', '#sbOnly'].forEach((s) => $(s).addEventListener('input', renderSurebets));
-['#mBook', '#mDir'].forEach((s) => $(s).addEventListener('input', renderMoves));
+['#fSearch', '#fSport', '#fGroup', '#fMinGap', '#fThree', '#fSort'].forEach((s) => ['input', 'change'].forEach((ev) => $(s).addEventListener(ev, renderGaps)));
+['#vGroup', '#vMin', '#vThree'].forEach((s) => ['input', 'change'].forEach((ev) => $(s).addEventListener(ev, renderValue)));
+['#sbStake', '#sbOnly'].forEach((s) => ['input', 'change'].forEach((ev) => $(s).addEventListener(ev, renderSurebets)));
+['#mBook', '#mDir'].forEach((s) => ['input', 'change'].forEach((ev) => $(s).addEventListener(ev, renderMoves)));
 
 // Actions sur les lignes (historique / ajout au journal)
 document.addEventListener('click', async (e) => {

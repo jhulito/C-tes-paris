@@ -1,6 +1,6 @@
 // Service worker : garde l'interface en cache pour un démarrage instantané.
 // Les données (/api) viennent toujours du serveur.
-const CACHE = 'cotes-v2';
+const CACHE = 'cotes-v3';
 const SHELL = ['/', '/index.html', '/styles.css', '/app.js', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {

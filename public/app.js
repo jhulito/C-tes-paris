@@ -471,7 +471,34 @@ $('#chatSuggest').addEventListener('click', (e) => { const b = e.target.closest(
 $('#chatClear').addEventListener('click', (e) => { e.preventDefault(); state.chat = []; saveChat(); $$('#chatLog .msg').slice(1).forEach((m) => m.remove()); });
 
 // ---------- Réglages ----------
+function renderQuickSports() {
+  const { settings, sports } = state.meta;
+  $('#qSports').innerHTML = Object.entries(sports).map(([k, v]) => `<label><input type="checkbox" value="${k}" ${settings.sports.includes(k) ? 'checked' : ''}/> ${v}</label>`).join('');
+}
+$('#qSports').addEventListener('change', async () => {
+  let sports = $$('#qSports input:checked').map((x) => x.value);
+  if (!sports.length) { sports = ['football']; toast('Sports', 'Il faut au moins un sport : football conservé.'); }
+  state.meta.settings = await api('/api/settings', { method: 'PUT', body: { sports } });
+  renderSettings();
+});
+
+$('#restoreFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  let data;
+  try { data = JSON.parse(await file.text()); } catch { return toast('Restauration', "Ce fichier n'est pas une sauvegarde valide."); }
+  if (!confirm(`Remplacer les données actuelles par cette sauvegarde (${(data.bets || []).length} paris) ?`)) return;
+  try {
+    const r = await api('/api/restore', { method: 'POST', body: data });
+    toast('Restauration', `Sauvegarde restaurée : ${r.bets} paris.`);
+    await loadMeta();
+    await Promise.all([loadAnalysis(), loadBets()]);
+  } catch (err) { toast('Restauration', err.message); }
+});
+
 function renderSettings() {
+  renderQuickSports();
   const { settings, sports, groups } = state.meta;
   const f = $('#settingsForm');
   $('#sSports').innerHTML = Object.entries(sports).map(([k, v]) => `<label><input type="checkbox" name="sports" value="${k}" ${settings.sports.includes(k) ? 'checked' : ''}/> ${v}</label>`).join('');

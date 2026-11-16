@@ -16,7 +16,7 @@ const { streamChat, MODEL } = require('./chat');
 
 const PORT = Number(process.env.PORT) || 3000;
 const app = express();
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false }));
 
 // ---------- Code d'accès (APP_PASSWORD) ----------
@@ -58,7 +58,8 @@ if (PASSWORD) {
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-const db = store.load();
+let db = store.load();
+console.log(`  Données : ${store.FILE}`);
 
 // ---------- Analyse (mise en cache par scan) ----------
 let cache = { at: null, data: null };
@@ -226,6 +227,20 @@ app.delete('/api/bets/:id', (req, res) => {
   db.bets = db.bets.filter((x) => x.id !== req.params.id);
   store.save();
   res.json({ ok: true });
+});
+
+// Sauvegarde / restauration de toutes les données (paris, réglages, historique)
+app.get('/api/backup', (req, res) => {
+  res.setHeader('Content-Disposition', `attachment; filename="ecarts-cotes-sauvegarde-${new Date().toISOString().slice(0, 10)}.json"`);
+  res.json({ ...db, lastScan: db.lastScan });
+});
+app.post('/api/restore', (req, res) => {
+  const d = req.body;
+  if (!d || typeof d !== 'object' || !Array.isArray(d.bets) || typeof d.settings !== 'object') return res.status(400).json({ error: 'Fichier de sauvegarde invalide' });
+  db = store.replace(d);
+  cache = { at: null, data: null };
+  scheduleAuto();
+  res.json({ ok: true, bets: db.bets.length });
 });
 
 // Export CSV des écarts

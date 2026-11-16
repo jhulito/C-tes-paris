@@ -46,6 +46,7 @@
 
     <!-- ÉCARTS -->
     <section id="tab-gaps" class="tab active">
+      <div class="scansports"><span class="muted">Sports scannés :</span><div id="qSports" class="chips"></div></div>
       <div class="kpis" id="kpis"></div>
       <div class="filters">
         <input id="fSearch" type="search" placeholder="Rechercher une équipe, une compétition…" />
@@ -165,6 +166,14 @@
         <button class="primary">Enregistrer</button>
         <span id="settingsSaved" class="muted"></span>
       </form>
+      <fieldset class="settings-box">
+        <legend>Sauvegarde de tes données</legend>
+        <p class="muted" style="margin-top:0">Tes paris, réglages et l'historique des cotes sont enregistrés sur l'ordinateur qui fait tourner l'app, à part du dossier de l'app : les mises à jour ne les effacent pas. Tu peux aussi en garder une copie.</p>
+        <div class="filters">
+          <a class="btn" href="/api/backup">Télécharger une sauvegarde</a>
+          <label class="btn">Restaurer une sauvegarde<input type="file" id="restoreFile" accept="application/json,.json" hidden /></label>
+        </div>
+      </fieldset>
     </section>
   </main>
 

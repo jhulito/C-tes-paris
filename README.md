@@ -85,12 +85,16 @@ src/server.js     API Express + scan automatique + alertes
 src/scraper.js    Lecture des cotes Flashscore (Playwright)
 src/analysis.js   Écarts, cote juste, value, surebets, marges, mouvements
 src/chat.js       Chat avec Claude (API Anthropic, réponses en streaming)
-src/store.js      Stockage local (data/db.json)
+src/store.js      Stockage local (~/.ecarts-cotes/db.json)
 public/           Interface (HTML/CSS/JS sans framework)
 test/             Tests des calculs (npm test)
 ```
 
 Variables optionnelles : `APP_PASSWORD` (code d'accès), `PORT`, `CLAUDE_MODEL` (défaut `claude-opus-5-5`), `CLAUDE_EFFORT` (défaut `low`), `HTTPS_PROXY`, `CHROMIUM_PATH`.
+
+## Tes données
+
+Tes paris, réglages et l'historique des cotes sont dans `~/.ecarts-cotes/db.json` (dans ton dossier personnel, **en dehors** du dossier de l'app) : mettre à jour ou retélécharger l'app ne les efface pas. Au premier lancement, une ancienne sauvegarde `data/db.json` est reprise automatiquement. Réglages, puis « Sauvegarde de tes données », permet aussi d'en télécharger une copie et de la restaurer.
 
 ## Bon à savoir
 

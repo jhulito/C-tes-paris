@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Écarts de cotes</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%2322c55e'/><text x='16' y='22' font-size='16' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'>%25</text></svg>" />
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo">%</span>
+      <div>
+        <h1>Écarts de cotes</h1>
+        <p class="sub">Winamax · Unibet · Betclic — source Flashscore</p>
+      </div>
+    </div>
+    <div class="scanbox">
+      <div id="scanInfo" class="muted">Aucun scan</div>
+      <button id="scanBtn" class="primary">Lancer un scan</button>
+    </div>
+  </header>
+  <div id="progress" class="progress hidden"><div class="bar"></div><span class="ptext"></span></div>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="gaps" class="active">Écarts</button>
+    <button data-tab="value">Value</button>
+    <button data-tab="surebets">Surebets <span class="badge hidden" id="sbBadge"></span></button>
+    <button data-tab="moves">Mouvements</button>
+    <button data-tab="books">Books</button>
+    <button data-tab="journal">Journal</button>
+    <button data-tab="chat">Chat</button>
+    <button data-tab="settings">Réglages</button>
+  </nav>
+
+  <main>
+    <div id="geoWarn" class="warn hidden"></div>
+
+    <!-- ÉCARTS -->
+    <section id="tab-gaps" class="tab active">
+      <div class="kpis" id="kpis"></div>
+      <div class="filters">
+        <input id="fSearch" type="search" placeholder="Rechercher une équipe, une compétition…" />
+        <select id="fSport"><option value="">Tous les sports</option></select>
+        <select id="fGroup"></select>
+        <label>Écart min <input id="fMinGap" type="number" value="3" min="0" step="0.5" /> %</label>
+        <label class="chk"><input id="fThree" type="checkbox" /> Les 3 books</label>
+        <select id="fSort">
+          <option value="gap">Trier : écart</option>
+          <option value="value">Trier : value</option>
+          <option value="outlier">Trier : avance sur les autres</option>
+          <option value="time">Trier : heure</option>
+        </select>
+        <a class="btn ghost" href="/api/export.csv">Export CSV</a>
+      </div>
+      <div class="tablewrap"><table class="grid" id="gapTable"></table></div>
+      <p class="hint">Écart = meilleure cote ÷ moins bonne cote − 1. Cote juste = consensus des books sans leur marge. En vert la meilleure cote, en rouge la moins bonne.</p>
+    </section>
+
+    <!-- VALUE -->
+    <section id="tab-value" class="tab">
+      <p class="lead">Sélections où la meilleure cote dépasse la <b>cote juste</b> (consensus des 3 books, marge retirée). Mise suggérée selon Kelly fractionné et ta bankroll.</p>
+      <div class="filters">
+        <select id="vGroup"></select>
+        <label>Value min <input id="vMin" type="number" value="1" step="0.5" /> %</label>
+        <label class="chk"><input id="vThree" type="checkbox" checked /> Les 3 books</label>
+      </div>
+      <div class="tablewrap"><table class="grid" id="valueTable"></table></div>
+    </section>
+
+    <!-- SUREBETS -->
+    <section id="tab-surebets" class="tab">
+      <p class="lead">En prenant la meilleure cote de chaque issue chez des books différents, si la somme des 1/cote est &lt; 1, le gain est garanti. Les marchés proches de 1 sont aussi listés (quasi-surebets).</p>
+      <div class="filters">
+        <label>Mise totale <input id="sbStake" type="number" value="100" min="1" /> €</label>
+        <label class="chk"><input id="sbOnly" type="checkbox" /> Seulement les surebets réels</label>
+      </div>
+      <div id="sbList" class="cards"></div>
+    </section>
+
+    <!-- MOUVEMENTS -->
+    <section id="tab-moves" class="tab">
+      <p class="lead">Cotes qui ont le plus bougé depuis leur ouverture chez chaque book. Une cote qui chute fort chez un book mais pas chez les autres signale souvent un retard d'ajustement.</p>
+      <div class="filters">
+        <select id="mBook"><option value="">Tous les books</option><option value="winamax">Winamax</option><option value="unibet">Unibet</option><option value="betclic">Betclic</option></select>
+        <select id="mDir"><option value="">Hausse et baisse</option><option value="down">Baisses</option><option value="up">Hausses</option></select>
+      </div>
+      <div class="tablewrap"><table class="grid" id="moveTable"></table></div>
+    </section>
+
+    <!-- BOOKS -->
+    <section id="tab-books" class="tab">
+      <p class="lead">Marge moyenne (et TRJ) de chaque book sur les marchés complets du dernier scan, et fréquence à laquelle il propose la meilleure cote.</p>
+      <div id="bookCards" class="cards three"></div>
+    </section>
+
+    <!-- JOURNAL -->
+    <section id="tab-journal" class="tab">
+      <div class="kpis" id="jKpis"></div>
+      <form id="betForm" class="betform">
+        <input name="event" placeholder="Match" required />
+        <input name="selection" placeholder="Sélection" required />
+        <select name="book"><option>Winamax</option><option>Unibet</option><option>Betclic</option></select>
+        <input name="odd" type="number" step="0.01" min="1.01" placeholder="Cote" required />
+        <input name="stake" type="number" step="0.01" min="0" placeholder="Mise €" required />
+        <input name="fairOdd" type="number" step="0.01" placeholder="Cote juste (opt.)" />
+        <button class="primary">Ajouter</button>
+      </form>
+      <div class="tablewrap"><table class="grid" id="betTable"></table></div>
+      <p class="hint">CLV (closing line value) : renseigne la cote au coup d'envoi pour savoir si tu bats régulièrement le marché, l'indicateur le plus fiable sur le long terme.</p>
+    </section>
+
+    <!-- CHAT -->
+    <section id="tab-chat" class="tab">
+      <div class="chat">
+        <div id="chatLog" class="chatlog">
+          <div class="msg assistant"><div class="bubble">Salut ! Je vois les résultats de ton dernier scan (écarts, value, surebets, mouvements) et ton journal de paris. Pose-moi une question, par exemple :<ul><li>« Quels sont les 5 écarts les plus intéressants ce soir ? »</li><li>« Explique-moi le surebet sur le premier match »</li><li>« Combien miser sur la meilleure value avec ma bankroll ? »</li></ul></div></div>
+        </div>
+        <div class="suggest" id="chatSuggest">
+          <button>Résume-moi le dernier scan</button>
+          <button>Quel book est le plus généreux en ce moment ?</button>
+          <button>Y a-t-il des écarts suspects à vérifier ?</button>
+        </div>
+        <form id="chatForm" class="chatform">
+          <textarea id="chatInput" rows="2" placeholder="Écris ton message… (Entrée pour envoyer, Maj+Entrée pour aller à la ligne)"></textarea>
+          <button class="primary" id="chatSend">Envoyer</button>
+        </form>
+        <div class="chatfoot muted"><span id="chatModel"></span> · <a href="#" id="chatClear">Effacer la conversation</a></div>
+      </div>
+    </section>
+
+    <!-- RÉGLAGES -->
+    <section id="tab-settings" class="tab">
+      <form id="settingsForm" class="settings">
+        <fieldset>
+          <legend>Scan</legend>
+          <div class="field"><span>Sports</span><div id="sSports" class="chips"></div></div>
+          <label class="field"><span>Jour</span>
+            <select name="dayOffset"><option value="0">Aujourd'hui</option><option value="1">Demain</option><option value="2">Après-demain</option></select></label>
+          <label class="field"><span>Matchs max par sport</span><input name="maxMatches" type="number" min="1" max="300" /></label>
+          <label class="field"><span>Pages en parallèle</span><input name="concurrency" type="number" min="1" max="6" /></label>
+          <label class="field"><span>Scan automatique</span>
+            <select name="autoScanMinutes"><option value="0">Désactivé</option><option value="15">Toutes les 15 min</option><option value="30">Toutes les 30 min</option><option value="60">Toutes les heures</option><option value="180">Toutes les 3 h</option></select></label>
+        </fieldset>
+        <fieldset>
+          <legend>Alertes</legend>
+          <label class="field"><span>Seuil d'écart</span><input name="alertGapPct" type="number" min="0" step="0.5" /> %</label>
+          <div class="field"><span>Marchés suivis</span><div id="sGroups" class="chips"></div></div>
+          <div class="field"><span>Notifications</span><button type="button" id="notifBtn" class="btn ghost">Activer les notifications du navigateur</button></div>
+        </fieldset>
+        <fieldset>
+          <legend>Bankroll</legend>
+          <label class="field"><span>Bankroll</span><input name="bankroll" type="number" min="0" step="1" /> €</label>
+          <label class="field"><span>Fraction de Kelly</span>
+            <select name="kellyFraction"><option value="0.1">10 % (prudent)</option><option value="0.25">25 %</option><option value="0.5">50 %</option><option value="1">100 % (agressif)</option></select></label>
+        </fieldset>
+        <button class="primary">Enregistrer</button>
+        <span id="settingsSaved" class="muted"></span>
+      </form>
+    </section>
+  </main>
+
+  <div id="modal" class="modal hidden"><div class="modalbox"><button class="close" id="modalClose">×</button><div id="modalBody"></div></div></div>
+  <div id="toasts" class="toasts"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
